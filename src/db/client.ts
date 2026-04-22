@@ -62,7 +62,6 @@ function applyMigrations(sqlite: Database.Database) {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __evalmediaDb: ReturnType<typeof createMigratedClient> | undefined;
 }
 

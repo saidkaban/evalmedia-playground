@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -57,17 +56,19 @@ type PaneProps = {
  * so images of different aspect ratios stay visually aligned on the
  * same region of the original subject.
  */
-export function SyncPane({ src, alt, onReady }: PaneProps) {
+export function SyncPane(props: PaneProps) {
+  // Reset local loading state when the src changes by remounting.
+  return <SyncPaneInner key={props.src} {...props} />;
+}
+
+function SyncPaneInner({ src, alt, onReady }: PaneProps) {
   const { viewport, setViewport } = useSyncViewport();
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef<{ startX: number; startY: number; vx: number; vy: number } | null>(
     null,
   );
   const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    setLoaded(false);
-  }, [src]);
+  const [dragging, setDragging] = useState(false);
 
   const clampViewport = useCallback((next: Viewport): Viewport => {
     const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next.scale));
@@ -112,6 +113,7 @@ export function SyncPane({ src, alt, onReady }: PaneProps) {
         vx: viewport.x,
         vy: viewport.y,
       };
+      setDragging(true);
     },
     [viewport.x, viewport.y],
   );
@@ -136,6 +138,7 @@ export function SyncPane({ src, alt, onReady }: PaneProps) {
 
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     draggingRef.current = null;
+    setDragging(false);
     containerRef.current?.releasePointerCapture(e.pointerId);
   }, []);
 
@@ -166,7 +169,7 @@ export function SyncPane({ src, alt, onReady }: PaneProps) {
         style={{
           transform,
           transformOrigin: "center center",
-          transition: draggingRef.current ? "none" : "transform 80ms linear",
+          transition: dragging ? "none" : "transform 80ms linear",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}

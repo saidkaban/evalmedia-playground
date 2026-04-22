@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { AlertCircle, Check, Loader2, ZoomIn } from "lucide-react";
 import { usePlaygroundStore } from "@/store/playground";
 import { Button } from "@/components/ui/button";
@@ -53,11 +53,6 @@ function ComparisonBody({
   const { reset } = useSyncViewport();
   const setSession = usePlaygroundStore((s) => s.setSession);
   const [voting, setVoting] = useState(false);
-  const [revealed, setRevealed] = useState(!blindMode);
-
-  useMemo(() => {
-    setRevealed(!blindMode);
-  }, [blindMode, session.id]);
 
   async function vote(winnerOutputId: string) {
     setVoting(true);
@@ -69,7 +64,6 @@ function ComparisonBody({
       });
       const data = (await res.json()) as { session?: SessionRow };
       if (data.session) setSession(data.session);
-      setRevealed(true);
     } finally {
       setVoting(false);
     }
@@ -77,6 +71,10 @@ function ComparisonBody({
 
   const hasVoted = session.votes.length > 0;
   const myWinner = session.votes[session.votes.length - 1]?.winnerOutputId;
+  // Reveal model names whenever blind mode is off, or after the user has
+  // voted in this session. Deriving this during render avoids the effect
+  // cascade we'd get from a separate reveal state.
+  const revealed = !blindMode || hasVoted;
   const count = session.outputs.length;
   const gridClass =
     count <= 1
