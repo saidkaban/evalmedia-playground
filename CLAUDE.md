@@ -29,8 +29,10 @@ Primary working folder: the repo root. Entry point: `src/app/page.tsx`.
   interface in `src/providers/types.ts`.
 - **Media type is an enum (image | video | audio).** It lives in the data
   model and provider interface even though only image is implemented.
-- **Prefer editing the curated model list over auto-discovery.** fal has
-  no public listing endpoint. Add entries to `src/providers/fal/models.ts`.
+- **The model list is fetched from fal's Platform API, not hardcoded.**
+  `src/providers/fal/models.ts` calls `api.fal.ai/v1/models?category=text-to-image&status=active`
+  and caches the response for 1 hour via Next.js fetch cache. Don't reintroduce
+  a curated list. To restrict or extend the catalog, filter at fetch time.
 
 ## Style rules
 

@@ -1,83 +1,74 @@
+import "server-only";
 import type { ModelInfo } from "@/providers/types";
 
+const PLATFORM_API = "https://api.fal.ai/v1/models";
+const IMAGE_CATEGORY = "text-to-image";
+const CACHE_TTL_SECONDS = 60 * 60;
+const PAGE_LIMIT = 100;
+const MAX_PAGES = 20;
+
+type FalModelEntry = {
+  endpoint_id: string;
+  metadata?: {
+    display_name?: string;
+    description?: string;
+    category?: string;
+    tags?: string[];
+    status?: string;
+  };
+};
+
+type FalModelResponse = {
+  models: FalModelEntry[];
+  next_cursor: string | null;
+  has_more: boolean;
+};
+
 /**
- * Curated set of image generation models available on fal.
- *
- * fal does not expose a public listing endpoint, so we hardcode a curated set.
- * Users running their own instance can edit this file to add or remove models.
- * Endpoint IDs are from https://fal.ai/models — verify there for new additions.
+ * Lists active image-generation models from fal's Platform API.
+ * Results are cached via Next.js fetch Data Cache for CACHE_TTL_SECONDS.
  */
-export const FAL_IMAGE_MODELS: ModelInfo[] = [
-  {
-    id: "fal-ai/nano-banana-2",
-    name: "Nano Banana 2",
-    description: "Google's fast image model. Good default for speed.",
-    mediaType: "image",
-    providerId: "fal",
-    tags: ["fast", "google"],
-  },
-  {
-    id: "fal-ai/nano-banana-pro",
-    name: "Nano Banana Pro",
-    description: "Higher-fidelity variant of Nano Banana.",
-    mediaType: "image",
-    providerId: "fal",
-    tags: ["google", "high-quality"],
-  },
-  {
-    id: "fal-ai/nano-banana",
-    name: "Nano Banana",
-    description: "Original Nano Banana image model.",
-    mediaType: "image",
-    providerId: "fal",
-    tags: ["google"],
-  },
-  {
-    id: "fal-ai/flux/schnell",
-    name: "FLUX Schnell",
-    description: "Very fast FLUX variant, 1 to 4 steps.",
-    mediaType: "image",
-    providerId: "fal",
-    tags: ["fast", "flux"],
-  },
-  {
-    id: "fal-ai/flux/dev",
-    name: "FLUX Dev",
-    description: "Balanced FLUX model, good default for quality.",
-    mediaType: "image",
-    providerId: "fal",
-    tags: ["flux"],
-  },
-  {
-    id: "fal-ai/flux-pro/v1.1",
-    name: "FLUX Pro 1.1",
-    description: "Pro-tier FLUX with higher fidelity.",
-    mediaType: "image",
-    providerId: "fal",
-    tags: ["flux", "high-quality"],
-  },
-  {
-    id: "fal-ai/flux-2-pro",
-    name: "FLUX 2 Pro",
-    description: "Next-gen FLUX pro model.",
-    mediaType: "image",
-    providerId: "fal",
-    tags: ["flux", "high-quality"],
-  },
-  {
-    id: "openai/gpt-image-2",
-    name: "GPT Image 2",
-    description: "OpenAI's image generation model via fal.",
-    mediaType: "image",
-    providerId: "fal",
-    tags: ["openai"],
-  },
-  {
-    id: "fal-ai/recraft/v4/pro/text-to-image",
-    name: "Recraft v4 Pro",
-    description: "Design-focused generation with strong text rendering.",
-    mediaType: "image",
-    providerId: "fal",
-    tags: ["design", "text-rendering"],
-  },
-];
+export async function fetchFalImageModels(): Promise<ModelInfo[]> {
+  const apiKey = process.env.FAL_KEY;
+  const headers: HeadersInit = {};
+  if (apiKey) headers.Authorization = `Key ${apiKey}`;
+
+  const collected: ModelInfo[] = [];
+  let cursor: string | null = null;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const url = new URL(PLATFORM_API);
+    url.searchParams.set("category", IMAGE_CATEGORY);
+    url.searchParams.set("status", "active");
+    url.searchParams.set("limit", String(PAGE_LIMIT));
+    if (cursor) url.searchParams.set("cursor", cursor);
+
+    const res = await fetch(url, {
+      headers,
+      next: { revalidate: CACHE_TTL_SECONDS },
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(
+        `fal Platform API ${res.status} ${res.statusText}${body ? `: ${body}` : ""}`,
+      );
+    }
+    const data = (await res.json()) as FalModelResponse;
+
+    for (const entry of data.models) {
+      collected.push({
+        id: entry.endpoint_id,
+        name: entry.metadata?.display_name ?? entry.endpoint_id,
+        description: entry.metadata?.description,
+        mediaType: "image",
+        providerId: "fal",
+        tags: entry.metadata?.tags,
+      });
+    }
+
+    if (!data.has_more || !data.next_cursor) break;
+    cursor = data.next_cursor;
+  }
+
+  return collected;
+}

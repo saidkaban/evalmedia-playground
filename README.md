@@ -44,9 +44,9 @@ pnpm dev
 
 Image generations are billed per call by fal; check current pricing on each model's page at [fal.ai/models](https://fal.ai/models).
 
-## Adding or removing models
+## Model list
 
-Models are a curated list in [src/providers/fal/models.ts](src/providers/fal/models.ts). Edit that file to add any model ID from [fal.ai/models](https://fal.ai/models), then rebuild the Docker image or restart the dev server.
+The playground fetches active text-to-image endpoints from fal's Platform API on first load and caches the response for one hour. New models fal publishes show up automatically on the next cache refresh. If you want to restrict or extend the catalog (for example, to pin a shortlist), edit the fetch in [src/providers/fal/models.ts](src/providers/fal/models.ts).
 
 ## Adding a new provider
 

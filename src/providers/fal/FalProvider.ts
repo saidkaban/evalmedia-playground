@@ -6,7 +6,7 @@ import type {
   MediaType,
 } from "@/lib/types";
 import type { ModelInfo, Provider } from "@/providers/types";
-import { FAL_IMAGE_MODELS } from "@/providers/fal/models";
+import { fetchFalImageModels } from "@/providers/fal/models";
 
 let configured = false;
 
@@ -41,7 +41,7 @@ export class FalProvider implements Provider {
 
   async listModels(mediaType: MediaType): Promise<ModelInfo[]> {
     if (mediaType !== "image") return [];
-    return FAL_IMAGE_MODELS;
+    return fetchFalImageModels();
   }
 
   async generateImage(
