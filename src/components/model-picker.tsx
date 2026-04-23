@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search, X } from "lucide-react";
 import { usePlaygroundStore, modelKey } from "@/store/playground";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
@@ -11,16 +11,29 @@ export function ModelPicker() {
   const loading = usePlaygroundStore((s) => s.loadingModels);
   const selectedKeys = usePlaygroundStore((s) => s.selectedKeys);
   const toggleModel = usePlaygroundStore((s) => s.toggleModel);
+  const [query, setQuery] = useState("");
+
+  const filteredModels = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return models;
+    return models.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.id.toLowerCase().includes(q) ||
+        m.providerId.toLowerCase().includes(q) ||
+        (m.description?.toLowerCase().includes(q) ?? false),
+    );
+  }, [models, query]);
 
   const byProvider = useMemo(() => {
     const map = new Map<string, typeof models>();
-    for (const m of models) {
+    for (const m of filteredModels) {
       const list = map.get(m.providerId) ?? [];
       list.push(m);
       map.set(m.providerId, list);
     }
     return Array.from(map.entries());
-  }, [models]);
+  }, [filteredModels]);
 
   const selectedModels = useMemo(
     () =>
@@ -42,40 +55,70 @@ export function ModelPicker() {
 
   return (
     <div className="space-y-4">
-      {selectedModels.length > 0 && (
-        <div className="sticky -top-3 z-10 -mx-3 -mt-3 border-b border-border bg-background/95 px-3 pb-3 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wide text-muted">
-              Selected ({selectedModels.length})
-            </span>
+      <div className="sticky -top-3 z-10 -mx-3 -mt-3 space-y-2 border-b border-border bg-background/95 px-3 pb-3 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="relative">
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted"
+          />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search models"
+            className="w-full rounded-md border border-border bg-surface py-1.5 pl-8 pr-8 text-sm placeholder:text-muted focus:border-foreground focus:outline-none"
+          />
+          {query && (
             <button
               type="button"
-              onClick={() => {
-                for (const m of selectedModels) toggleModel(modelKey(m));
-              }}
-              className="text-xs text-muted hover:text-foreground"
+              onClick={() => setQuery("")}
+              title="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
             >
-              Clear
+              <X size={14} />
             </button>
+          )}
+        </div>
+        {selectedModels.length > 0 && (
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wide text-muted">
+                Selected ({selectedModels.length})
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  for (const m of selectedModels) toggleModel(modelKey(m));
+                }}
+                className="text-xs text-muted hover:text-foreground"
+              >
+                Clear
+              </button>
+            </div>
+            <ul className="flex flex-wrap gap-1.5">
+              {selectedModels.map((m) => {
+                const key = modelKey(m);
+                return (
+                  <li key={key}>
+                    <button
+                      type="button"
+                      onClick={() => toggleModel(key)}
+                      title={`Remove ${m.name}`}
+                      className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-surface py-0.5 pl-2 pr-1 text-xs hover:bg-surface-hover"
+                    >
+                      <span className="truncate">{m.name}</span>
+                      <X size={12} className="flex-shrink-0 text-muted" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-          <ul className="flex flex-wrap gap-1.5">
-            {selectedModels.map((m) => {
-              const key = modelKey(m);
-              return (
-                <li key={key}>
-                  <button
-                    type="button"
-                    onClick={() => toggleModel(key)}
-                    title={`Remove ${m.name}`}
-                    className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-surface py-0.5 pl-2 pr-1 text-xs hover:bg-surface-hover"
-                  >
-                    <span className="truncate">{m.name}</span>
-                    <X size={12} className="flex-shrink-0 text-muted" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+        )}
+      </div>
+      {byProvider.length === 0 && (
+        <div className="py-8 text-center text-sm text-muted">
+          No models match &ldquo;{query}&rdquo;.
         </div>
       )}
       {byProvider.map(([providerId, providerModels]) => (
