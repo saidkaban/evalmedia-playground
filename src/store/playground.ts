@@ -37,7 +37,7 @@ export const usePlaygroundStore = create<PlaygroundState>((set) => ({
   selectedKeys: [],
   prompt: "",
   seed: null,
-  blindMode: false,
+  blindMode: true,
   generating: false,
   session: null,
   error: null,
